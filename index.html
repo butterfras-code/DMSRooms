@@ -40,6 +40,7 @@
         .search-area {
             display: flex;
             justify-content: center;
+            align-items: center;
             margin-bottom: 20px;
         }
         
@@ -53,7 +54,7 @@
             margin-right: 10px;
         }
         
-        #findRoomBtn {
+        #findRoomBtn, #nextMatchBtn {
             padding: 10px 20px;
             background-color: #007bff;
             color: white;
@@ -64,8 +65,13 @@
             transition: background-color 0.2s ease;
         }
         
-        #findRoomBtn:hover {
+        #findRoomBtn:hover, #nextMatchBtn:hover {
             background-color: #0056b3;
+        }
+
+        #nextMatchBtn {
+            display: none; /* Hidden by default */
+            margin-left: 10px;
         }
         
         #message {
@@ -106,8 +112,9 @@
         <h1>Find Your Room</h1>
         <p>Enter a room number or a teacher's name to highlight it on the map.</p>
         <div class="search-area">
-            <input type="text" id="roomInput" placeholder="e.g., 1043 or Kuhn">
+            <input type="text" id="roomInput" placeholder="e.g., 1043 or Williams">
             <button id="findRoomBtn">Find Room</button>
+            <button id="nextMatchBtn">Next Match</button>
         </div>
         <div id="message"></div>
 
@@ -121,9 +128,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             const roomInput = document.getElementById('roomInput');
             const findRoomBtn = document.getElementById('findRoomBtn');
+            const nextMatchBtn = document.getElementById('nextMatchBtn');
             const mapContainer = document.getElementById('mapContainer');
             const schoolMap = document.getElementById('schoolMap');
             const messageDiv = document.getElementById('message');
+
+            let searchResults = [];
+            let currentMatchIndex = 0;
 
             // This object maps room numbers to their coordinates on the map.
             // The values are in percentages, which is much better for responsive design.
@@ -241,6 +252,24 @@
                 highlight.style.height = roomData.height;
                 return highlight;
             }
+            
+            function showMatch(index) {
+                // Hide all highlights first
+                document.querySelectorAll('.room-highlight').forEach(el => {
+                    el.style.display = 'none';
+                });
+
+                // Get the current match
+                const match = searchResults[index];
+                if (match) {
+                    const highlightElement = createHighlightElement(match.roomNumber, match.roomData);
+                    highlightElement.style.display = 'block';
+
+                    messageDiv.textContent = `Match ${index + 1} of ${searchResults.length}: Room ${match.roomNumber} (${match.roomData.name}) is highlighted on the map.`;
+
+                    schoolMap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
 
             findRoomBtn.addEventListener('click', findRoom);
             roomInput.addEventListener('keypress', (e) => {
@@ -249,45 +278,46 @@
                 }
             });
 
+            nextMatchBtn.addEventListener('click', () => {
+                currentMatchIndex = (currentMatchIndex + 1) % searchResults.length;
+                showMatch(currentMatchIndex);
+            });
+
             function findRoom() {
                 const searchTerm = roomInput.value.trim().toLowerCase();
-                messageDiv.textContent = ''; // Clear previous messages
+                messageDiv.textContent = '';
+                searchResults = [];
+                currentMatchIndex = 0;
 
-                // Hide all current highlights
+                // Hide all highlights first
                 document.querySelectorAll('.room-highlight').forEach(el => {
                     el.style.display = 'none';
                 });
 
-                let foundRoomKey = null;
-                let foundRoomData = null;
+                nextMatchBtn.style.display = 'none';
 
                 // First, try to find a room by its number
                 if (roomLocations[searchTerm]) {
-                    foundRoomKey = searchTerm;
-                    foundRoomData = roomLocations[foundRoomKey];
+                    searchResults.push({ roomNumber: searchTerm, roomData: roomLocations[searchTerm] });
                 }
 
-                // If not found, search by teacher's name (partial, case-insensitive match)
-                if (!foundRoomKey) {
-                    for (const roomNumber in roomLocations) {
-                        const roomInfo = roomLocations[roomNumber];
-                        if (roomInfo.name.toLowerCase().includes(searchTerm)) {
-                            foundRoomKey = roomNumber;
-                            foundRoomData = roomInfo;
-                            break; // Found a match, stop searching
+                // Then, search by teacher's name (partial, case-insensitive match)
+                for (const roomNumber in roomLocations) {
+                    const roomInfo = roomLocations[roomNumber];
+                    if (roomInfo.name.toLowerCase().includes(searchTerm)) {
+                        // Check if we've already found this room via number search
+                        const alreadyFound = searchResults.some(result => result.roomNumber === roomNumber);
+                        if (!alreadyFound) {
+                             searchResults.push({ roomNumber: roomNumber, roomData: roomInfo });
                         }
                     }
                 }
-
-                if (foundRoomData) {
-                    const highlightElement = createHighlightElement(foundRoomKey, foundRoomData);
-                    highlightElement.style.display = 'block'; // Show the highlight
-
-                    messageDiv.textContent = `Room ${foundRoomKey} (${foundRoomData.name}) is highlighted on the map.`;
-
-                    // Optional: Scroll the map into view if it's off-screen
-                    schoolMap.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
+                
+                if (searchResults.length > 0) {
+                    showMatch(currentMatchIndex);
+                    if (searchResults.length > 1) {
+                        nextMatchBtn.style.display = 'inline-block';
+                    }
                 } else {
                     messageDiv.textContent = `Room or teacher "${roomInput.value}" not found. Please try again.`;
                 }
