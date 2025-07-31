@@ -104,9 +104,9 @@
 <body>
     <div class="container">
         <h1>Find Your Room</h1>
-        <p>Enter a room number to highlight it on the map.</p>
+        <p>Enter a room number or a teacher's name to highlight it on the map.</p>
         <div class="search-area">
-            <input type="text" id="roomInput" placeholder="e.g., 101, Gym, Library">
+            <input type="text" id="roomInput" placeholder="e.g., 1043 or Kuhn">
             <button id="findRoomBtn">Find Room</button>
         </div>
         <div id="message"></div>
@@ -250,7 +250,7 @@
             });
 
             function findRoom() {
-                const roomNumber = roomInput.value.trim().toLowerCase();
+                const searchTerm = roomInput.value.trim().toLowerCase();
                 messageDiv.textContent = ''; // Clear previous messages
 
                 // Hide all current highlights
@@ -258,19 +258,38 @@
                     el.style.display = 'none';
                 });
 
-                const foundRoom = roomLocations[roomNumber];
+                let foundRoomKey = null;
+                let foundRoomData = null;
 
-                if (foundRoom) {
-                    const highlightElement = createHighlightElement(roomNumber, foundRoom);
+                // First, try to find a room by its number
+                if (roomLocations[searchTerm]) {
+                    foundRoomKey = searchTerm;
+                    foundRoomData = roomLocations[foundRoomKey];
+                }
+
+                // If not found, search by teacher's name (partial, case-insensitive match)
+                if (!foundRoomKey) {
+                    for (const roomNumber in roomLocations) {
+                        const roomInfo = roomLocations[roomNumber];
+                        if (roomInfo.name.toLowerCase().includes(searchTerm)) {
+                            foundRoomKey = roomNumber;
+                            foundRoomData = roomInfo;
+                            break; // Found a match, stop searching
+                        }
+                    }
+                }
+
+                if (foundRoomData) {
+                    const highlightElement = createHighlightElement(foundRoomKey, foundRoomData);
                     highlightElement.style.display = 'block'; // Show the highlight
 
-                    messageDiv.textContent = `${foundRoom.name} is highlighted on the map.`;
+                    messageDiv.textContent = `Room ${foundRoomKey} (${foundRoomData.name}) is highlighted on the map.`;
 
                     // Optional: Scroll the map into view if it's off-screen
                     schoolMap.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
                 } else {
-                    messageDiv.textContent = `Room "${roomInput.value}" not found. Please try again.`;
+                    messageDiv.textContent = `Room or teacher "${roomInput.value}" not found. Please try again.`;
                 }
             }
         });
