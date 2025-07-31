@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dean Middle School Room Finder</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f4f4f4;
+            background-color: #f0f4f8; /* Light gray background to match logo */
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -17,23 +19,31 @@
         }
         
         .container {
-            background-color: #fff;
+            background-color: #ffffff; /* White background to match logo */
             padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle shadow for a clean look */
             width: 100%;
             max-width: 900px; /* Adjust as needed */
             box-sizing: border-box;
             text-align: center;
         }
         
+        .logo {
+            float: left;
+            margin-bottom: 20px;
+            max-width: 120px; /* Adjust size as needed */
+            height: auto;
+        }
+
         h1 {
-            color: #333;
+            color: #1a202c; /* Dark text color for readability */
             margin-bottom: 10px;
+            clear: both; /* Clear the float from the logo */
         }
         
         p {
-            color: #555;
+            color: #4a5568; /* Gray text color */
             margin-bottom: 20px;
         }
         
@@ -45,28 +55,36 @@
         }
         
         #roomInput {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
             font-size: 16px;
             width: 60%;
             max-width: 300px;
             margin-right: 10px;
+            transition: border-color 0.3s ease;
+        }
+        
+        #roomInput:focus {
+            outline: none;
+            border-color: #4299e1; /* Blue highlight on focus */
         }
         
         #findRoomBtn, #nextMatchBtn {
-            padding: 10px 20px;
-            background-color: #007bff;
+            padding: 12px 24px;
+            background-color: #4267b2; /* Blue from the logo */
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
-            transition: background-color 0.2s ease;
+            font-weight: bold;
+            transition: background-color 0.2s ease, transform 0.1s ease;
         }
         
         #findRoomBtn:hover, #nextMatchBtn:hover {
-            background-color: #0056b3;
+            background-color: #314d8b; /* Slightly darker blue on hover */
+            transform: translateY(-1px);
         }
 
         #nextMatchBtn {
@@ -75,7 +93,7 @@
         }
         
         #message {
-            color: red;
+            color: #c53030; /* A darker red for better contrast */
             font-weight: bold;
             margin-bottom: 15px;
             min-height: 20px; /* Reserve space */
@@ -85,7 +103,8 @@
             position: relative; /* Crucial for positioning highlights */
             width: 100%;
             overflow: hidden; /* To keep highlights within bounds if they stretch */
-            border: 1px solid #ccc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
             box-sizing: border-box;
             display: inline-block; /* To make it wrap content properly */
         }
@@ -99,8 +118,9 @@
         /* Base style for all highlight elements */
         .room-highlight {
             position: absolute;
-            background-color: rgba(255, 255, 0, 0.6); /* Yellow with transparency */
-            border: 2px solid red;
+            background-color: rgba(255, 204, 0, 0.6); /* Yellow with transparency, a bit brighter */
+            border: 2px solid #ff0000; /* Red border */
+            border-radius: 4px;
             display: none; /* Hidden by default */
             pointer-events: none; /* Allows clicks to pass through to underlying elements if needed */
             box-sizing: border-box;
@@ -109,6 +129,7 @@
 </head>
 <body>
     <div class="container">
+        <img src="DeanM_70thAnniversary-2.webp" alt="Dean Middle School Logo" class="logo">
         <h1>Find Your Room</h1>
         <p>Enter a room number or a teacher's name to highlight it on the map.</p>
         <div class="search-area">
