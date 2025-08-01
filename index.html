@@ -24,7 +24,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 900px;
+            max-width: 1500px; /* Increased max-width for a larger map */
             box-sizing: border-box;
             text-align: center;
             margin-top: 20px;
@@ -69,28 +69,49 @@
         
         .search-area {
             display: flex;
+            flex-wrap: wrap;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 20px;
         }
+
+        .search-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 10px;
+            min-width: 250px;
+        }
+
+        .search-group label {
+            color: #1a202c;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
         
-        #roomInput {
+        #roomInput, #starRoomInput {
             padding: 12px;
             border: 2px solid #e2e8f0;
             border-radius: 8px;
             font-size: 16px;
-            width: 60%;
+            width: 100%;
             max-width: 300px;
-            margin-right: 10px;
+            margin-bottom: 10px;
             transition: border-color 0.3s ease;
         }
         
-        #roomInput:focus {
+        #roomInput:focus, #starRoomInput:focus {
             outline: none;
             border-color: #4299e1;
         }
         
-        #findRoomBtn, #nextMatchBtn {
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #highlightRoomBtn, #addStarBtn, #nextMatchBtn {
             padding: 12px 24px;
             background-color: #4267b2; /* Blue from the logo */
             color: white;
@@ -102,14 +123,13 @@
             transition: background-color 0.2s ease, transform 0.1s ease;
         }
         
-        #findRoomBtn:hover, #nextMatchBtn:hover {
+        #highlightRoomBtn:hover, #addStarBtn:hover, #nextMatchBtn:hover {
             background-color: #314d8b; /* Slightly darker blue on hover */
             transform: translateY(-1px);
         }
 
         #nextMatchBtn {
             display: none; /* Hidden by default */
-            margin-left: 10px;
         }
         
         #message {
@@ -122,6 +142,7 @@
         #mapContainer {
             position: relative;
             width: 100%;
+            min-height: 400px; 
             overflow: hidden;
             border: 2px solid #e2e8f0;
             border-radius: 8px;
@@ -144,6 +165,38 @@
             pointer-events: none;
             box-sizing: border-box;
         }
+
+        .star-marker {
+            position: absolute;
+            display: none;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            animation: sparkle 1s infinite;
+        }
+        
+        .star-marker:before {
+            content: "★";
+            color: #007bff; /* Changed to blue */
+            font-size: 30px;
+            line-height: 1;
+        }
+
+        @keyframes sparkle {
+            0% {
+                color: #007bff; /* Blue */
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                color: #ffcc00; /* Yellow */
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            100% {
+                color: #007bff; /* Blue */
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
     </style>
 </head>
 <body>
@@ -151,12 +204,22 @@
         <img src="DeanM_70thAnniversary-2.webp" alt="Dean Middle School Logo" class="logo">
         <div class="header-content">
             <h1>Find Your Room</h1>
-            <p>Enter a room number or a teacher's name to highlight it on the map.</p>
+            <p>Use the search tools below to find rooms on the map. The "Help Me Find" tool will highlight a room, while the "I'm Near" tool will place a star to mark your current location.</p>
         </div>
         <div class="search-area">
-            <input type="text" id="roomInput" placeholder="e.g., 1043 or Williams">
-            <button id="findRoomBtn">Find Room</button>
-            <button id="nextMatchBtn">Next Match</button>
+            <div class="search-group">
+                <label for="roomInput">Help Me Find</label>
+                <input type="text" id="roomInput" placeholder="e.g., 1043 or Williams">
+                <div class="search-buttons">
+                    <button id="highlightRoomBtn">Find</button>
+                    <button id="nextMatchBtn">Next</button>
+                </div>
+            </div>
+            <div class="search-group">
+                <label for="starRoomInput">I'm Near</label>
+                <input type="text" id="starRoomInput" placeholder="e.g., 1065">
+                <button id="addStarBtn">Add Star</button>
+            </div>
         </div>
         <div id="message"></div>
 
@@ -166,16 +229,18 @@
     </div>
 
     <script>
+        let searchResults = [];
+        let currentMatchIndex = 0;
+
         document.addEventListener('DOMContentLoaded', () => {
             const roomInput = document.getElementById('roomInput');
-            const findRoomBtn = document.getElementById('findRoomBtn');
+            const highlightRoomBtn = document.getElementById('highlightRoomBtn');
             const nextMatchBtn = document.getElementById('nextMatchBtn');
+            const starRoomInput = document.getElementById('starRoomInput');
+            const addStarBtn = document.getElementById('addStarBtn');
             const mapContainer = document.getElementById('mapContainer');
             const schoolMap = document.getElementById('schoolMap');
             const messageDiv = document.getElementById('message');
-
-            let searchResults = [];
-            let currentMatchIndex = 0;
 
             const roomLocations = {
                 '1043': { top: '65.80%', left: '70.08%', width: '2.30%', height: '5.40%', floor: 1, name: 'Kuhn, Victoria' },
@@ -207,14 +272,14 @@
                 '1097': { top: '38.46%', left: '74.49%', width: '2.30%', height: '5.40%', floor: 1, name: 'Crain, Meschelle' },
                 '1102': { top: '46.84%', left: '76.50%', width: '2.30%', height: '5.40%', floor: 1, name: 'Home Ec. Ross, John' },
                 '1106': { top: '46.77%', left: '81.81%', width: '2.30%', height: '5.40%', floor: 1, name: 'Instuctional Materials' },
-                '1108': { top: '46.77%', left: '84.89%', width: '2.30%', height: '5.40%', floor: 1, name: 'Instuctional Materials' },
-                '1110': { top: '38.46%', left: '83.56%', width: '2.30%', height: '5.40%', floor: 1, name: 'Tech Shop Bond, Alexander' },
-                '1117': { top: '24.11%', left: '82.12%', width: '2.30%', height: '5.40%', floor: 1, name: 'Coding/Robotics Lab Nebeker, Bill' },
-                '1118': { top: '42.58%', left: '89.75%', width: '2.30%', height: '5.40%', floor: 1, name: 'Manufacturing' },
-                '1120': { top: '24.52%', left: '89.52%', width: '2.30%', height: '5.40%', floor: 1, name: 'Engineering' },
+                '1108': { top: '46.77%', left: '78.8%', width: '2.30%', height: '5.40%', floor: 1, name: 'Instuctional Materials' },
+                '1110': { top: '30.4%', left: '83.56%', width: '4.60%', height: '10.80%', floor: 1, name: 'Tech Shop Bond, Alexander' },
+                '1117': { top: '24.11%', left: '82.12%', width: '3.00%', height: '5.40%', floor: 1, name: 'Coding/Robotics Lab Nebeker, Bill' },
+                '1118': { top: '29.92%', left: '89.52%', width: '3.00%', height: '5.40%', floor: 1, name: 'Manufacturing' },
+                '1120': { top: '24.52%', left: '89.52%', width: '3.00%', height: '5.40%', floor: 1, name: 'Engineering' },
                 '1121': { top: '17.72%', left: '88.12%', width: '2.30%', height: '5.40%', floor: 1, name: 'Baird, Joe' },
                 '1122': { top: '17.72%', left: '84.21%', width: '2.30%', height: '5.40%', floor: 1, name: 'Williams, Jazmine' },
-                '1123': { top: '0.00%', left: '74.49%', width: '2.30%', height: '5.40%', floor: 1, name: 'Higdon, Katherine' },
+                '1123': { top: '17.72%', left: '80.5%', width: '2.30%', height: '5.40%', floor: 1, name: 'Higdon, Katherine' },
                 '1127': { top: '38.46%', left: '74.49%', width: '2.30%', height: '5.40%', floor: 1, name: 'Jurkovich, Michelle' },
                 '1128': { top: '24.04%', left: '74.49%', width: '2.30%', height: '5.40%', floor: 1, name: 'Smith, Dimitri' },
                 '1129': { top: '38.46%', left: '71.22%', width: '2.30%', height: '5.40%', floor: 1, name: 'Patricia Howard-Porter' },
@@ -227,21 +292,21 @@
                 '1139': { top: '17.51%', left: '71.30%', width: '2.30%', height: '5.40%', floor: 1, name: 'Ongudu, Elizabeth' },
                 '1141': { top: '17.51%', left: '65.26%', width: '2.30%', height: '5.40%', floor: 1, name: 'Juarez-Vazquez, Ernesto' },
                 '1142': { top: '17.51%', left: '62.11%', width: '2.30%', height: '5.40%', floor: 1, name: 'Marroquin, Alexandria' },
-                '1146': { top: '17.51%', left: '100.00%', width: '2.30%', height: '5.40%', floor: 1, name: 'Kazadi, Biaya Yannick' },
+                '1146': { top: '17.51%', left: '55.88%', width: '2.30%', height: '5.40%', floor: 1, name: 'Kazadi, Biaya Yannick' },
                 '1147': { top: '17.51%', left: '48.14%', width: '2.30%', height: '5.40%', floor: 1, name: 'Berryman, Alexis' },
                 '1148': { top: '17.51%', left: '52.51%', width: '2.30%', height: '5.40%', floor: 1, name: 'James, Alexis' },
                 '1152': { top: '24.31%', left: '55.88%', width: '2.30%', height: '5.40%', floor: 1, name: 'Art Lab (McLean) McLean, Marvin' },
-                '1155': { top: '38.46%', left: '54.59%', width: '2.30%', height: '5.40%', floor: 1, name: 'DMC Polanco, Bryan' },
+                '1155': { top: '38.46%', left: '54.59%', width: '2.30%', height: '2.30%', floor: 1, name: 'DMC Polanco, Bryan' },
                 '1156': { top: '24.31%', left: '52.51%', width: '2.30%', height: '5.40%', floor: 1, name: 'Art Lab (Goulding) Goulding, Logan' },
                 '1157': { top: '38.46%', left: '51.40%', width: '2.30%', height: '5.40%', floor: 1, name: 'Life Skills Estrada, Alejandra' },
                 '1162': { top: '24.31%', left: '48.63%', width: '2.30%', height: '5.40%', floor: 1, name: 'Theatre Bubier, Guinevere' },
-                '1165': { top: '38.46%', left: '47.95%', width: '2.30%', height: '5.40%', floor: 1, name: 'Life Skills New Hire LIFE Skills' },
-                '1167': { top: '38.46%', left: '47.95%', width: '2.30%', height: '5.40%', floor: 1, name: 'Life Skills Hewitt, Derrick' },
-                '1169': { top: '38.46%', left: '44.61%', width: '2.30%', height: '5.40%', floor: 1, name: 'Life Skills Espinoza-Sandel, Susan' },
+                '1165': { top: '38.46%', left: '47.95%', width: '2.30%', height: '2.30%', floor: 1, name: 'Life Skills New Hire LIFE Skills' },
+                '1167': { top: '38.46%', left: '47.95%', width: '2.30%', height: '2.30%', floor: 1, name: 'Life Skills Hewitt, Derrick' },
+                '1169': { top: '38.46%', left: '44.61%', width: '2.30%', height: '2.30%', floor: 1, name: 'Life Skills Espinoza-Sandel, Susan' },
                 '1170': { top: '24.31%', left: '46.20%', width: '2.30%', height: '5.40%', floor: 1, name: 'Theatre' },
-                '1173': { top: '38.46%', left: '41.34%', width: '2.30%', height: '5.40%', floor: 1, name: 'Williams, Kyanna' },
+                '1173': { top: '38.46%', left: '41.34%', width: '2.30%', height: '2.30%', floor: 1, name: 'Williams, Kyanna' },
                 '1174': { top: '24.31%', left: '43.66%', width: '2.30%', height: '5.40%', floor: 1, name: 'Wright, William' },
-                '1175': { top: '32.69%', left: '41.34%', width: '2.30%', height: '5.40%', floor: 1, name: 'Open LS area' },
+                '1175': { top: '32.69%', left: '41.34%', width: '2.30%', height: '2.30%', floor: 1, name: 'Open LS area' },
                 '1176': { top: '24.31%', left: '41.31%', width: '2.30%', height: '5.40%', floor: 1, name: 'Steiber, Rosio' },
                 '1185': { top: '59.41%', left: '57.48%', width: '2.30%', height: '5.40%', floor: 1, name: 'DePau, Gabrielle' },
                 '1186': { top: '49.45%', left: '50.42%', width: '2.30%', height: '5.40%', floor: 1, name: 'Science lab Wilson, Matthew' },
@@ -254,7 +319,7 @@
                 '1197': { top: '42.99%', left: '42.75%', width: '2.30%', height: '5.40%', floor: 1, name: 'Science lab Arredondo, Anthony' },
                 '1201': { top: '59.41%', left: '41.95%', width: '2.30%', height: '5.40%', floor: 1, name: 'Science lab Minnieweather, Jaeron' },
                 '1218': { top: '65.25%', left: '34.55%', width: '2.30%', height: '5.40%', floor: 1, name: 'Ensemble Orchestra' },
-                '1219': { top: '65.25%', left: '34.55%', width: '2.30%', height: '5.40%', floor: 1, name: 'Orchestra Keller, Julia' },
+                '1219': { top: '65.25%', left: '34.55%', width: '5%', height: '5.40%', floor: 1, name: 'Orchestra Keller, Julia' },
                 '1220': { top: '65.80%', left: '57.40%', width: '2.30%', height: '5.40%', floor: 1, name: 'Patterson, Kenneth' },
                 '1221': { top: '73.97%', left: '57.40%', width: '2.30%', height: '5.40%', floor: 1, name: 'Manuel, Mercedes' },
                 '1222': { top: '65.80%', left: '54.29%', width: '2.30%', height: '5.40%', floor: 1, name: 'Correa, Elba' },
@@ -265,32 +330,62 @@
                 '1227': { top: '73.97%', left: '48.10%', width: '2.30%', height: '5.40%', floor: 1, name: 'Rose Massey' },
                 '1228': { top: '65.80%', left: '100.00%', width: '2.30%', height: '5.40%', floor: 1, name: 'Bydalek, David' },
                 '1229': { top: '73.97%', left: '100.00%', width: '2.30%', height: '5.40%', floor: 1, name: 'Pappano III, Phillip' },
-                '1242': { top: '85.65%', left: '32.16%', width: '2.30%', height: '5.40%', floor: 1, name: 'Band Hogue, Paul/Butterfras, William' },
+                '1242': { top: '85.65%', left: '32.16%', width: '5%', height: '5.40%', floor: 1, name: 'Band Hogue, Paul/Butterfras, William' },
                 '1248': { top: '85.65%', left: '32.16%', width: '2.30%', height: '5.40%', floor: 1, name: 'Ensemble Band' },
-                '1249': { top: '81.04%', left: '27.15%', width: '2.30%', height: '5.40%', floor: 1, name: 'Band Annex Hogue, Paul/Butterfras, William' },
+                '1249': { top: '81.04%', left: '27.15%', width: '5%', height: '5.40%', floor: 1, name: 'Band Annex Hogue, Paul/Butterfras, William' },
                 '1259': { top: '60.51%', left: '29.04%', width: '2.30%', height: '5.40%', floor: 1, name: 'Girls Locker' },
                 '1264': { top: '64.56%', left: '24.64%', width: '2.30%', height: '5.40%', floor: 1, name: 'Choir Bulice, Laura' },
                 '1265': { top: '64.56%', left: '24.64%', width: '2.30%', height: '5.40%', floor: 1, name: 'Flex Space' },
-                '1270': { top: '46.70%', left: '21.26%', width: '2.30%', height: '5.40%', floor: 1, name: 'Gym Branch, Ahmad/Solari, Gian/Roberts, Corey/Gaecke, David' },
-                '1290': { top: '42.24%', left: '9.19%', width: '2.30%', height: '5.40%', floor: 1, name: 'Competition Gym Cofield-Perez, Rebecca/Adams, Natasha/Gonzales, Priscilla' },
+                '1270': { top: '46.70%', left: '21.26%', width: '4.60%', height: '10.80%', floor: 1, name: 'Gym Branch, Ahmad/Solari, Gian/Roberts, Corey/Gaecke, David' },
+                '1290': { top: '42.24%', left: '9.19%', width: '4.60%', height: '10.80%', floor: 1, name: 'Competition Gym Cofield-Perez, Rebecca/Adams, Natasha/Gonzales, Priscilla' },
             };
 
             // Function to create and manage highlight elements
-            function createHighlightElement(id, roomData) {
+            function createHighlightElement(id, roomData, isStar = false) {
                 let highlight = document.getElementById('highlight-' + id);
                 if (!highlight) {
                     highlight = document.createElement('div');
                     highlight.id = 'highlight-' + id;
-                    highlight.classList.add('room-highlight');
                     mapContainer.appendChild(highlight);
                 }
+                
+                // Clear existing classes and add new ones
+                highlight.className = '';
+                if (isStar) {
+                    highlight.classList.add('star-marker');
+                } else {
+                    highlight.classList.add('room-highlight');
+                }
+
                 highlight.style.top = roomData.top;
                 highlight.style.left = roomData.left;
-                highlight.style.width = roomData.width;
-                highlight.style.height = roomData.height;
+                
+                if (!isStar) {
+                    highlight.style.width = roomData.width;
+                    highlight.style.height = roomData.height;
+                } else {
+                    const mapWidth = mapContainer.offsetWidth;
+                    const mapHeight = mapContainer.offsetHeight;
+                    const x = parseFloat(roomData.left) / 100 * mapWidth;
+                    const y = parseFloat(roomData.top) / 100 * mapHeight;
+                    const widthPx = parseFloat(roomData.width) / 100 * mapWidth;
+                    const heightPx = parseFloat(roomData.height) / 100 * mapHeight;
+
+                    highlight.style.top = (y + heightPx / 2) + 'px';
+                    highlight.style.left = (x + widthPx / 2) + 'px';
+                    highlight.style.width = '30px';
+                    highlight.style.height = '30px';
+                }
+                
                 return highlight;
             }
             
+            function clearAllHighlights() {
+                document.querySelectorAll('.room-highlight, .star-marker').forEach(el => {
+                    el.style.display = 'none';
+                });
+            }
+
             function showMatch(index) {
                 document.querySelectorAll('.room-highlight').forEach(el => {
                     el.style.display = 'none';
@@ -301,23 +396,9 @@
                     const highlightElement = createHighlightElement(match.roomNumber, match.roomData);
                     highlightElement.style.display = 'block';
 
-                    messageDiv.textContent = `Match ${index + 1} of ${searchResults.length}: Room ${match.roomNumber} (${match.roomData.name}) is highlighted on the map.`;
-
-                    schoolMap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    messageDiv.textContent = `Match ${index + 1} of ${searchResults.length}: Room ${match.roomNumber} (${match.roomData.name}) is highlighted.`;
                 }
             }
-
-            findRoomBtn.addEventListener('click', findRoom);
-            roomInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    findRoom();
-                }
-            });
-
-            nextMatchBtn.addEventListener('click', () => {
-                currentMatchIndex = (currentMatchIndex + 1) % searchResults.length;
-                showMatch(currentMatchIndex);
-            });
 
             function findRoom() {
                 const searchTerm = roomInput.value.trim().toLowerCase();
@@ -325,6 +406,7 @@
                 searchResults = [];
                 currentMatchIndex = 0;
 
+                // Clear previous highlight results, but keep the star marker
                 document.querySelectorAll('.room-highlight').forEach(el => {
                     el.style.display = 'none';
                 });
@@ -354,6 +436,42 @@
                     messageDiv.textContent = `Room or teacher "${roomInput.value}" not found. Please try again.`;
                 }
             }
+
+            function addStar() {
+                const roomNumber = starRoomInput.value.trim().toLowerCase();
+                
+                // Clear previous star marker
+                const existingStar = document.querySelector('.star-marker');
+                if (existingStar) {
+                    existingStar.remove();
+                }
+
+                if (roomLocations[roomNumber]) {
+                    const starElement = createHighlightElement(roomNumber, roomLocations[roomNumber], true);
+                    starElement.style.display = 'block';
+                    messageDiv.textContent = `A star has been placed at Room ${roomNumber} (${roomLocations[roomNumber].name}).`;
+                } else {
+                    messageDiv.textContent = `Room "${roomNumber}" not found.`;
+                }
+            }
+
+            highlightRoomBtn.addEventListener('click', findRoom);
+            nextMatchBtn.addEventListener('click', () => {
+                currentMatchIndex = (currentMatchIndex + 1) % searchResults.length;
+                showMatch(currentMatchIndex);
+            });
+            starRoomInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addStar();
+                }
+            });
+            addStarBtn.addEventListener('click', addStar);
+
+            roomInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    findRoom();
+                }
+            });
         });
     </script>
 </body>
